@@ -68,7 +68,7 @@ contract UserWithTokensTest is UserWithTokens {
         v.deposit(10);
 
         assertEq(token.balanceOf(USER), 90);
-        assertEq(token.balanceOf(address(v)), 210);
+        assertEq(token.balanceOf(address(v)), 10);
     }
 
     function testUserCantDepositMoreThanTheyHave() public {

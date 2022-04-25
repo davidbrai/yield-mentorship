@@ -15,6 +15,7 @@ contract BasicVault {
     mapping(address => uint) public balances;
 
     error BalanceTooLow();
+    error TransferFailed();
 
     /// @notice This event is emitted when a user deposits tokens
     event Deposit(address from, uint amount);
@@ -32,7 +33,10 @@ contract BasicVault {
     /// @dev Updates the balances mapping with the amount of tokens
     /// @param amount The amount of tokens to deposit
     function deposit(uint amount) public {
-        token.transferFrom(msg.sender, address(this), amount);
+        bool success = token.transferFrom(msg.sender, address(this), amount);
+        if (!success) {
+            revert TransferFailed();
+        }
         
         balances[msg.sender] += amount;
 
@@ -48,7 +52,10 @@ contract BasicVault {
         }
 
         balances[msg.sender] -= amount;
-        token.transfer(msg.sender, amount);
+        bool success = token.transfer(msg.sender, amount);
+        if (!success) {
+            revert TransferFailed();
+        }
         
         emit Withdraw(msg.sender, amount);
     }

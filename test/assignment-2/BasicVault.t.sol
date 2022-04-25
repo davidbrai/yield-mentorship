@@ -3,14 +3,14 @@ pragma solidity ^0.8.13;
 
 import "forge-std/test.sol";
 import "src/assignment-2/BasicVault.sol";
-import "yield-utils-v2/mocks/ERC20Mock.sol";
+import "./ERC20MockWithFailedTransfers.sol";
 
 abstract contract ZeroState is Test {
     BasicVault public v;
-    ERC20Mock token;
+    ERC20MockWithFailedTransfers token;
 
     function setUp() public virtual {
-        token = new ERC20Mock("Walkie Talkie", "WOKTOK");
+        token = new ERC20MockWithFailedTransfers("Walkie Talkie", "WOKTOK");
         v = new BasicVault(token);
     }
 }
@@ -83,6 +83,13 @@ contract UserWithTokensTest is UserWithTokens {
         emit Deposit(USER, 10);
         v.deposit(10);
     }
+
+    function testDepositRevertsIfTransferReturnsFalse() public {
+        token.setFailTransfers(true);
+        vm.expectRevert(BasicVault.TransferFailed.selector);
+        vm.prank(USER);
+        v.deposit(10);
+    }
 }
 
 abstract contract UserDeposited is UserWithTokens {
@@ -124,5 +131,13 @@ contract UserDepositedTest is UserDeposited {
         vm.expectEmit(true, true, true, true);
         emit Withdraw(USER, 20);
         v.withdraw(20);
+    }
+
+    function testWithdrawRevertsIfTransferFails() public {
+        token.setFailTransfers(true);
+
+        vm.prank(USER);
+        vm.expectRevert(BasicVault.TransferFailed.selector);
+        v.withdraw(10);
     }
 }

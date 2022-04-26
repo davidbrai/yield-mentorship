@@ -33,12 +33,12 @@ contract BasicVault {
     /// @dev Updates the balances mapping with the amount of tokens
     /// @param amount The amount of tokens to deposit
     function deposit(uint amount) public {
+        balances[msg.sender] += amount;
+
         bool success = token.transferFrom(msg.sender, address(this), amount);
         if (!success) {
             revert TransferFailed();
         }
-        
-        balances[msg.sender] += amount;
 
         emit Deposit(msg.sender, amount);
     }

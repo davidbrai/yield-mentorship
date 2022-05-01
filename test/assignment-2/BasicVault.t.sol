@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
 import "src/assignment-2/BasicVault.sol";
-import "./ERC20MockWithFailedTransfers.sol";
+import "src/assignment-2/ERC20MockWithFailedTransfers.sol";
 
 abstract contract ZeroState is Test {
     BasicVault public v;

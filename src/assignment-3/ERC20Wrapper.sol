@@ -11,7 +11,7 @@ import {IERC20} from "yield-utils-v2/token/IERC20.sol";
 contract ERC20Wrapper is ERC20Permit {
 
     /// @notice The wrapped ERC20 token
-    IERC20 public token;
+    IERC20 public immutable token;
 
     error TransferFailed();
 

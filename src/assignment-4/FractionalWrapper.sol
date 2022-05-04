@@ -34,24 +34,27 @@ contract FractionalWrapper is ERC20Permit {
     }
 
     /// @notice Deposit tokens into the contract and gets back wrapper shares which wrap Yearn Vault shares
-    ///     1. User sends `amount` of `token` to wrapper
-    ///     2. Wrapper sends `amount` of `token` to Yearn Vault
-    ///     3. Yearn Vault sends `numShares` of `yvToken` to wrapper
-    ///     4. Wrapper sends `numShares` of wrapper shares to user
-    /// @param amount The amount of underlying token to deposit
-    function deposit(uint amount) public {
+    ///     1. User sends `tokenAmount` of `token` to wrapper
+    ///     2. Wrapper sends `tokenAmount` of `token` to Yearn Vault
+    ///     3. Yearn Vault sends `yvTokenAmount` of `yvToken` to wrapper
+    ///     4. Wrapper sends `yvTokenAmount` of wrapper shares to user
+    /// @param tokenAmount The amount of underlying token to deposit
+    /// @return The amount of wrapper tokens minted to the user
+    function deposit(uint tokenAmount) public returns (uint256) {
         // User sends underlying tokens -> Wrapper
-        bool success = token.transferFrom(msg.sender, address(this), amount);
+        bool success = token.transferFrom(msg.sender, address(this), tokenAmount);
         if (!success) {
             revert TransferFailed();
         }
 
         // Wrapper sends underlying tokens -> YVault
         // YVault sends yvTokens to Wrapper
-        uint256 numShares = yvToken.deposit(amount);
+        uint256 yvTokenAmount = yvToken.deposit(tokenAmount);
 
         // Wrapper sends Wrapper shares to user
-        _mint(msg.sender, numShares);
+        _mint(msg.sender, yvTokenAmount);
+
+        return yvTokenAmount;
     }
 
     /// @notice Burns a specified amount of wrapper shares and returns the underlying token to the user
@@ -59,17 +62,20 @@ contract FractionalWrapper is ERC20Permit {
     ///     2. Wrapper burns `numShares` of `yvToken`
     ///     3. Yearn Vault sends `amount` of `token` to wrapper
     ///     4. Wrapper sends `amount` of `token` back to user
-    /// @param numShares The number of wrapper shares to burn
-    function burn(uint numShares) public {
-        _burn(msg.sender, numShares);
+    /// @param wrapperTokenAmount The number of wrapper shares to burn
+    /// @return The amount of `token` tokens sent to the user
+    function burn(uint wrapperTokenAmount) public returns (uint256) {
+        _burn(msg.sender, wrapperTokenAmount);
 
         // Withdraw from YVault, get back underlying token
-        uint256 amount = yvToken.withdraw(numShares);
+        uint256 tokenAmount = yvToken.withdraw(wrapperTokenAmount);
 
         // Send underlying back to user
-        bool success = token.transfer(msg.sender, amount);
+        bool success = token.transfer(msg.sender, tokenAmount);
         if (!success) {
             revert TransferFailed();
         }
+
+        return tokenAmount;
     }
 }

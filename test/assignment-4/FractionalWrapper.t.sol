@@ -51,6 +51,13 @@ contract ZeroStateTest is ZeroState {
         assertEq(yvToken.balanceOf(address(wrapper)), 1500);
     }
 
+    function testReturnsNumberOfWrapperTokensSentToUser() public {
+        vm.prank(USER);
+        uint256 tokens = wrapper.deposit(3000);
+
+        assertEq(tokens, 1500);
+    }
+
     function testNumSharesWhenPriceHasFractions() public {
         // 12.345 = 12345 / 1000; => RAY * 12345 / 1000
         yvToken.setPricePerShareMock((RAY * 12345) / 1000);
@@ -81,13 +88,20 @@ abstract contract UserDepositedState is ZeroState {
 }
 
 contract UserDepositedStateTest is UserDepositedState {
-    function testBurnReturnsUnderlyingTokenToUser() public {
+    function testBurnSendsUnderlyingTokenToUser() public {
         assertEq(token.balanceOf(USER), 2000);
 
         vm.prank(USER);
         wrapper.burn(1500);
 
         assertEq(token.balanceOf(USER), 5000);
+    }
+
+    function testBurnReturnsTheNumberOfUnderlyingTokensSentToUser() public {
+        vm.prank(USER);
+        uint256 tokens = wrapper.burn(1500);
+
+        assertEq(tokens, 3000);
     }
 
     function testBurnAfterPriceIncreasedShouldResultInMoreTokens() public {

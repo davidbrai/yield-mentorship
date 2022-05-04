@@ -7,7 +7,7 @@ import {IERC20} from "yield-utils-v2/token/IERC20.sol";
 interface IYearnVault {
     function deposit(uint256 amount) external returns (uint256);
     function withdraw(uint256 maxShares) external returns (uint256);
-    // function pricePerShare() external view returns (uint256);
+    function pricePerShare() external view returns (uint256);
 }
 
 contract YearnVaultMock is IYearnVault, ERC20Permit {

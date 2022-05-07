@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
 import {CollateralizedVault} from "src/assignment-5/CollateralizedVault.sol";
-import {Dai} from "src/assignment-5/Dai.sol";
+import {Dai} from "src/assignment-5/DAI.sol";
 import {WETH9} from "src/assignment-5/WETH.sol";
 import {IERC20} from "yield-utils-v2/token/IERC20.sol";
 import {ChainlinkPriceFeedMock} from "src/assignment-5/ChainlinkPriceFeedMock.sol";

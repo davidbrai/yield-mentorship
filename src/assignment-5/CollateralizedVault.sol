@@ -13,8 +13,8 @@ interface IERC20WithDecimals is IERC20 {
 /// @author davidbrai
 /// @notice A vault that allows to borrow a token against a collateral
 ///     If a debt position is not sufficiently collateralized, e.g when the market price
-///     of the collateral went down, then the user's collateral may be liquidated.
-///     In case of a liquidation, the users debt and collateral are nullified.
+///     of the collateral goes down, then the user's collateral may be liquidated by the admin.
+///     In case of a liquidation, both the user's debt and collateral are erased.
 /// @dev The Vault uses Chainlink price feeds to determine the value of the collateral compared to the debt
 contract CollateralizedVault is Ownable {
 

@@ -57,14 +57,14 @@ contract FractionalWrapper is ERC20Permit {
         return yvTokenAmount;
     }
 
-    /// @notice Burns a specified amount of wrapper shares and returns the underlying token to the user
-    ///     1. User burns `numShares` of wrapper shares
+    /// @notice Withdraws a specified amount of wrapper shares and returns the underlying token to the user
+    ///     1. User withdraws by returning `numShares` of wrapper shares
     ///     2. Wrapper burns `numShares` of `yvToken`
     ///     3. Yearn Vault sends `amount` of `token` to wrapper
     ///     4. Wrapper sends `amount` of `token` back to user
     /// @param wrapperTokenAmount The number of wrapper shares to burn
     /// @return The amount of `token` tokens sent to the user
-    function burn(uint wrapperTokenAmount) public returns (uint256) {
+    function withdraw(uint wrapperTokenAmount) public returns (uint256) {
         _burn(msg.sender, wrapperTokenAmount);
 
         // Withdraw from YVault, get back underlying token

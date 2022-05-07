@@ -88,41 +88,41 @@ abstract contract UserDepositedState is ZeroState {
 }
 
 contract UserDepositedStateTest is UserDepositedState {
-    function testBurnSendsUnderlyingTokenToUser() public {
+    function testWithdrawSendsUnderlyingTokenToUser() public {
         assertEq(token.balanceOf(USER), 2000);
 
         vm.prank(USER);
-        wrapper.burn(1500);
+        wrapper.withdraw(1500);
 
         assertEq(token.balanceOf(USER), 5000);
     }
 
-    function testBurnReturnsTheNumberOfUnderlyingTokensSentToUser() public {
+    function testWithdrawReturnsTheNumberOfUnderlyingTokensSentToUser() public {
         vm.prank(USER);
-        uint256 tokens = wrapper.burn(1500);
+        uint256 tokens = wrapper.withdraw(1500);
 
         assertEq(tokens, 3000);
     }
 
-    function testBurnAfterPriceIncreasedShouldResultInMoreTokens() public {
+    function testWithdrawAfterPriceIncreasedShouldResultInMoreTokens() public {
         yvToken.setPricePerShareMock(3 * RAY);
 
         // Vault made a lot of profit
         token.mint(address(yvToken), 1000000);
 
         vm.prank(USER);
-        wrapper.burn(1500);
+        wrapper.withdraw(1500);
 
         // price went from 2 to 3, so user should get x1.5 tokens
         // 2000 + 3000 * 1.5 = 6500
         assertEq(token.balanceOf(USER), 6500);
     }
 
-    function testBurnRevertsIfTransferFails() public {
+    function testWithdrawRevertsIfTransferFails() public {
         token.setFailTransfers(true);
 
         vm.expectRevert(FractionalWrapper.TransferFailed.selector);
         vm.prank(USER);
-        wrapper.burn(1500);
+        wrapper.withdraw(1500);
     }
 }

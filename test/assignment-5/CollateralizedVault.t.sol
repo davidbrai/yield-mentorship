@@ -10,6 +10,8 @@ import {ChainlinkPriceFeedMock} from "src/assignment-5/ChainlinkPriceFeedMock.so
 
 abstract contract ZeroState is Test {
 
+    using stdStorage for StdStorage;
+
     address USER = address(1);
     CollateralizedVault vault;
     Dai dai;
@@ -23,14 +25,33 @@ abstract contract ZeroState is Test {
         priceFeedMock.setPrice(500000000000000); // = 1/2000
         vault = new CollateralizedVault(address(dai), address(weth), address(priceFeedMock));
 
-        dai.mint(address(vault), 10000 ether);
-        weth.mint(USER, 10 ether);
+        setDaiBalance(address(vault), 10000 ether);
+        setWethBalance(USER, 10 ether);
         vm.prank(USER);
         weth.approve(address(vault), 10 ether);
+    }
+
+    function setDaiBalance(address dst, uint256 balance) public {
+        stdstore
+            .target(address(dai))
+            .sig(dai.balanceOf.selector)
+            .with_key(dst)
+            .depth(0)
+            .checked_write(balance);
+    }
+
+    function setWethBalance(address dst, uint256 balance) public {
+        stdstore
+            .target(address(weth))
+            .sig(weth.balanceOf.selector)
+            .with_key(dst)
+            .depth(0)
+            .checked_write(balance);
     }
 }
 
 contract ZeroStateTest is ZeroState {
+
     function testDeposit() public {
         vm.prank(USER);
         vault.deposit(3 ether);
@@ -39,11 +60,18 @@ contract ZeroStateTest is ZeroState {
         assertEq(weth.balanceOf(USER), 7 ether);
         assertEq(weth.balanceOf(address(vault)), 3 ether);
 
-        // 6000 DAI was transfered to the USER
-        assertEqDecimal(dai.balanceOf(USER), 3 * 2000 ether, 18);
-
+        // User collateral is recorded
         assertEq(vault.depositedCollateral(USER), 3 ether);
-        assertEq(vault.debt(USER), 3 * 2000 ether);
+    }
+
+    function testDepositMultipleTimesAccumulatesCollateral() public {
+        vm.startPrank(USER);
+
+        vault.deposit(1 ether);
+        vault.deposit(1 ether);
+
+        assertEq(weth.balanceOf(address(vault)), 2 ether);
+        assertEq(vault.depositedCollateral(USER), 2 ether);
     }
 
     function testScaleInteger() public {
@@ -58,7 +86,7 @@ contract ZeroStateTest is ZeroState {
     }
 }
 
-abstract contract DepositedState is ZeroState {
+abstract contract DepositedCollateralState is ZeroState {
     function setUp() public virtual override {
         super.setUp();
 
@@ -70,7 +98,45 @@ abstract contract DepositedState is ZeroState {
     }
 }
 
-contract DepositedStateTest is DepositedState {
+contract DepositedCollateralStateTest is DepositedCollateralState {
+    function testBorrow() public {
+        vm.prank(USER);
+        vault.borrow(6000 * 1e18);
+
+        // 6000 DAI was transfered to the USER
+        assertEqDecimal(dai.balanceOf(USER), 6000 * 1e18, 18);
+
+        // User debt is recorded
+        assertEq(vault.debt(USER), 6000 * 1e18);
+    }
+
+    function testBorrowMultipleTimesAccumulatesDebt() public {
+        vm.startPrank(USER);
+
+        vault.borrow(5 * 1e18);
+        vault.borrow(10 * 1e18);
+
+        assertEqDecimal(dai.balanceOf(USER), 15 * 1e18, 18);
+        assertEq(vault.debt(USER), 15 * 1e18);
+    }
+
+    function testRevertsWhenTryingToBorrowTooMuch() public {
+        vm.prank(USER);
+        vm.expectRevert(CollateralizedVault.NotEnoughCollateral.selector);
+        vault.borrow(6000 * 1e18 + 1);
+    }
+}
+
+abstract contract BorrowedState is DepositedCollateralState {
+    function setUp() public virtual override {
+        super.setUp();
+
+        vm.prank(USER);
+        vault.borrow(6000 * 1e18);
+    }
+}
+
+contract BorrowedStateTest is BorrowedState {
     function testRepayDebt() public {
         assertEq(vault.debt(USER), 3 * 2000 ether);
 
@@ -95,7 +161,7 @@ contract DepositedStateTest is DepositedState {
 
     function testCanWithdrawEntireCollateralIfPaidAllDebt() public {
         assertEq(weth.balanceOf(USER), 7 ether);
-        assertEq(vault.debt(USER), 3 * 2000 ether);
+        assertEq(vault.debt(USER), 6000 * 1e18);
         assertEq(vault.depositedCollateral(USER), 3 ether);
 
         // Repay entire debt
@@ -111,6 +177,12 @@ contract DepositedStateTest is DepositedState {
         assertEq(weth.balanceOf(USER), 10 ether);
     }
 
+    function testOnlyOwnerCanLiquidate() public {
+        vm.prank(address(0x1234));
+        vm.expectRevert("Ownable: caller is not the owner");
+        vault.liquidateUser(USER);
+    }
+
     function testOwnerCantLiquidateIfDebtIsCollateralized() public {
         vm.expectRevert(CollateralizedVault.UserDebtIsSufficientlyCollateralized.selector);
         vault.liquidateUser(USER);
@@ -121,7 +193,7 @@ contract DepositedStateTest is DepositedState {
         priceFeedMock.setPrice(1e18 / 1000);
 
         // Need 6 WETH
-        assertEq(vault.getRequiredCollateral(USER), 6 ether);
+        assertEq(vault.getRequiredCollateral(vault.debt(USER)), 6 ether);
         // But only 3 is deposited
         assertEq(vault.depositedCollateral(USER), 3 ether);
 
@@ -133,7 +205,7 @@ contract DepositedStateTest is DepositedState {
     }
 }
 
-abstract contract PartiallyRepaidDebtState is DepositedState {
+abstract contract PartiallyRepaidDebtState is BorrowedState {
     function setUp() virtual override public {
         super.setUp();
 

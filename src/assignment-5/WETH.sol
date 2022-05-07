@@ -35,12 +35,6 @@ contract WETH9 {
     receive() external payable {
         deposit();
     }
-
-    /// @notice FOR TESTING: mint as much as you want
-    function mint(address dst, uint wad) public {
-        balanceOf[dst] += wad;
-    }
-
     function deposit() public payable {
         balanceOf[msg.sender] += msg.value;
         emit Deposit(msg.sender, msg.value);

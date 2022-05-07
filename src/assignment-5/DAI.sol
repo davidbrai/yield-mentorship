@@ -139,13 +139,6 @@ contract Dai is LibNote {
         emit Transfer(src, dst, wad);
         return true;
     }
-
-    function mintForTesting(address usr, uint wad) public {
-        balanceOf[usr] = add(balanceOf[usr], wad);
-        totalSupply    = add(totalSupply, wad);
-        emit Transfer(address(0), usr, wad);
-    }
-
     function mint(address usr, uint wad) external auth {
         balanceOf[usr] = add(balanceOf[usr], wad);
         totalSupply    = add(totalSupply, wad);

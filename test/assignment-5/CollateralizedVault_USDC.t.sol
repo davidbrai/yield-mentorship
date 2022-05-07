@@ -10,6 +10,8 @@ import {ChainlinkPriceFeedMock} from "src/assignment-5/ChainlinkPriceFeedMock.so
 
 abstract contract ZeroState is Test {
 
+    using stdStorage for StdStorage;
+
     address USER = address(1);
     CollateralizedVault vault;
     USDC usdc;
@@ -24,20 +26,34 @@ abstract contract ZeroState is Test {
         vault = new CollateralizedVault(address(usdc), address(weth), address(priceFeedMock));
 
         usdc.mint(address(vault), 1e27 * 1e6);
-        weth.mint(USER, 10 ether);
+        vm.prank(USER);
+        usdc.approve(address(vault), type(uint256).max);
+
+        setWethBalance(USER, 10 ether);
         vm.prank(USER);
         weth.approve(address(vault), 10 ether);
+    }
+
+    function setWethBalance(address dst, uint256 balance) public {
+        stdstore
+            .target(address(weth))
+            .sig(weth.balanceOf.selector)
+            .with_key(dst)
+            .depth(0)
+            .checked_write(balance);
     }
 }
 
 contract ZeroStateTest is ZeroState {
     function testDeposit() public {
-        vm.prank(USER);
+        vm.startPrank(USER);
         vault.deposit(3 ether);
 
         // 3 WETH was transfered to the vault
         assertEq(weth.balanceOf(USER), 7 ether);
         assertEq(weth.balanceOf(address(vault)), 3 ether);
+
+        vault.borrow(6000 * 1e6);
 
         // 6000 USDC was transfered to the USER
         assertEqDecimal(usdc.balanceOf(USER), 6000 * 1e6, 6);
@@ -47,5 +63,17 @@ contract ZeroStateTest is ZeroState {
 
         // Debt is 6000 USDC
         assertEq(vault.debt(USER), 6000 * 1e6);
+    }
+
+    function testRevertsIfTryingToWithdrawTooMuch() public {
+        vm.startPrank(USER);
+        vault.deposit(3 ether);
+        vault.borrow(6000 * 1e6);
+        vault.repayDebt(2000 * 1e6);
+
+        vm.expectRevert(CollateralizedVault.TooMuchDebt.selector);
+        vault.withdrawCollateral(2 ether);
+
+        vault.withdrawCollateral(1 ether);
     }
 }

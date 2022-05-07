@@ -17,6 +17,8 @@ contract FractionalWrapper is ERC20Permit {
     IERC20 public immutable token;
     IYearnVault public immutable yvToken;
 
+    uint256 constant RAY = 10 ** 27;
+
     error TransferFailed();
 
     /// @notice Initializes a new FractionalWrapper
@@ -77,5 +79,20 @@ contract FractionalWrapper is ERC20Permit {
         }
 
         return tokenAmount;
+    }
+
+    /// @notice Withdraws from the wrapper to recover an exact amount of underlying token
+    /// @param tokenAmount The amount of underlying token to recover
+    /// @return wrapperAmount The amount of wrapper tokens burned
+    function withdrawExact(uint256 tokenAmount) public returns (uint256 wrapperAmount) {
+        wrapperAmount = rdiv(tokenAmount, yvToken.pricePerShare());
+        withdraw(wrapperAmount);
+    }
+
+    /// @dev Divides a ray number by a non ray divisor
+    /// @param x A number to be divided. Should be a fixed point integer with 27 decimals (ray)
+    /// @param y The divisor, a regular integer
+    function rdiv(uint256 x, uint256 y) internal pure returns (uint256) {
+        return (x * RAY) / y;
     }
 }

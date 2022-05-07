@@ -104,6 +104,16 @@ contract UserDepositedStateTest is UserDepositedState {
         assertEq(tokens, 3000);
     }
 
+    function testWithdrawExactAmount() public {
+        assertEq(token.balanceOf(USER), 2000);
+
+        vm.prank(USER);
+        uint256 wrapperSharesReturned = wrapper.withdrawExact(1234);
+
+        assertEq(token.balanceOf(USER), 3234);
+        assertEq(wrapperSharesReturned, 617);
+    }
+
     function testWithdrawAfterPriceIncreasedShouldResultInMoreTokens() public {
         yvToken.setPricePerShareMock(3 * RAY);
 

@@ -80,17 +80,17 @@ contract CollateralizedVault is Ownable {
 
     /// @notice Withdraws part of the collateral
     ///     Only allowed to withdraw as long as the collateral left is higher in value than the debt
-    /// @param amount The amount of `collateral` token to withdraw
-    function withdrawCollateral(uint256 amount) public {
+    /// @param collateralAmount The amount of `collateral` token to withdraw
+    function withdraw(uint256 collateralAmount) public {
         uint256 requiredCollateral = getRequiredCollateral(debt[msg.sender]);
 
-        if (depositedCollateral[msg.sender] - amount < requiredCollateral) {
+        if (depositedCollateral[msg.sender] - collateralAmount < requiredCollateral) {
             revert TooMuchDebt();
         }
 
-        depositedCollateral[msg.sender] -= amount;
+        depositedCollateral[msg.sender] -= collateralAmount;
 
-        collateral.transfer(msg.sender, amount);
+        collateral.transfer(msg.sender, collateralAmount);
     }
 
     /// @notice Admin: liquidate a user debt if the collateral value falls below the debt

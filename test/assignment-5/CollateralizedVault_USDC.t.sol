@@ -72,8 +72,8 @@ contract ZeroStateTest is ZeroState {
         vault.repayDebt(2000 * 1e6);
 
         vm.expectRevert(CollateralizedVault.TooMuchDebt.selector);
-        vault.withdrawCollateral(2 ether);
+        vault.withdraw(2 ether);
 
-        vault.withdrawCollateral(1 ether);
+        vault.withdraw(1 ether);
     }
 }

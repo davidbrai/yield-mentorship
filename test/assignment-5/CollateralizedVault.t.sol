@@ -156,7 +156,7 @@ contract BorrowedStateTest is BorrowedState {
     function testCantWithdrawCollateral() public {
         vm.prank(USER);
         vm.expectRevert(CollateralizedVault.TooMuchDebt.selector);
-        vault.withdrawCollateral(1);
+        vault.withdraw(1);
     }
 
     function testCanWithdrawEntireCollateralIfPaidAllDebt() public {
@@ -172,7 +172,7 @@ contract BorrowedStateTest is BorrowedState {
         // But also no more DAI
         assertEq(dai.balanceOf(USER), 0);
 
-        vault.withdrawCollateral(3 ether);
+        vault.withdraw(3 ether);
         // WETH is returned to user
         assertEq(weth.balanceOf(USER), 10 ether);
     }
@@ -222,7 +222,7 @@ contract PartiallyRepaidDebtStateTest is PartiallyRepaidDebtState {
         assertEq(vault.debt(USER), 2000 ether);
 
         vm.prank(USER);
-        vault.withdrawCollateral(2 ether);
+        vault.withdraw(2 ether);
         // WETH is returned to user
         assertEq(weth.balanceOf(USER), 9 ether);
     }
@@ -230,7 +230,7 @@ contract PartiallyRepaidDebtStateTest is PartiallyRepaidDebtState {
     function testRevertWhenTryingToWithdrawTooMuch() public {
         vm.prank(USER);
         vm.expectRevert(CollateralizedVault.TooMuchDebt.selector);
-        vault.withdrawCollateral(2 ether + 1);
+        vault.withdraw(2 ether + 1);
     }
 
     function testCanWithdrawLessIfPriceMovedNegatively() public {
@@ -240,11 +240,11 @@ contract PartiallyRepaidDebtStateTest is PartiallyRepaidDebtState {
         // can't withdraw 2 WETH
         vm.prank(USER);
         vm.expectRevert(CollateralizedVault.TooMuchDebt.selector);
-        vault.withdrawCollateral(2 ether);
+        vault.withdraw(2 ether);
 
         // but 1 WETH is OK
         vm.prank(USER);
-        vault.withdrawCollateral(1 ether);
+        vault.withdraw(1 ether);
     }
 
     function testCanWithdrawMoreIfPriceMovePositively() public {
@@ -261,10 +261,10 @@ contract PartiallyRepaidDebtStateTest is PartiallyRepaidDebtState {
         // Making sure he can't withdraw more than that first
         vm.prank(USER);
         vm.expectRevert(CollateralizedVault.TooMuchDebt.selector);
-        vault.withdrawCollateral(2.2 ether + 1);
+        vault.withdraw(2.2 ether + 1);
 
         // And checking that he can withdraw 2.2 WETH
         vm.prank(USER);
-        vault.withdrawCollateral(2.2 ether);
+        vault.withdraw(2.2 ether);
     }
 }

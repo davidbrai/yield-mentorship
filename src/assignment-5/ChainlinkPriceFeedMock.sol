@@ -3,6 +3,9 @@ pragma solidity ^0.8.13;
 
 import {AggregatorV3Interface} from "chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
+/// @title A mock chainlink price feed used for testing
+/// @author davidbrai
+/// @dev Use `setPrice` to manipulate the feed
 contract ChainlinkPriceFeedMock is AggregatorV3Interface {
 
     int256 public price;

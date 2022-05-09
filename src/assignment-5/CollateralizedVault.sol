@@ -20,6 +20,10 @@ interface IERC20WithDecimals is IERC20 {
 /// @dev The Vault uses Chainlink price feeds to determine the value of the collateral compared to the debt
 contract CollateralizedVault is Ownable {
 
+    /******************
+     * Immutables
+     ******************/
+
     /// @notice ERC20 token which can be borrowed from the vault
     IERC20WithDecimals public immutable underlying;
 
@@ -30,11 +34,25 @@ contract CollateralizedVault is Ownable {
     ///     e.g. if underlying is DAI and collateral is WETH, priceFeed is for DAI/WETH
     AggregatorV3Interface public immutable oracle;
 
+    /// @dev Number of decimals for underlying token
+    uint8 public immutable underlyingDecimals;
+
+    /// @dev Number of decimals for collateral token
+    uint8 public immutable collateralDecimals;
+
+    /// @dev Number of decimals for oracle price
+    uint8 public immutable oracleDecimals;
+
+    /******************
+     * State variables
+     ******************/
+
     /// @notice deposited collateral per user in the vault, of `collateral` token
     mapping(address => uint256) public deposits;
 
     /// @notice Mapping of current debt per user, of `underlying` token
     mapping(address => uint256) public borrows;
+
 
     error TooMuchDebt();
     error NotEnoughCollateral();
@@ -48,6 +66,11 @@ contract CollateralizedVault is Ownable {
         underlying = IERC20WithDecimals(underlying_);
         collateral = IERC20WithDecimals(collateral_);
         oracle = AggregatorV3Interface(oracle_);
+
+        // Gas optimization: save decimals in contract instead of reading from external contract
+        underlyingDecimals = underlying.decimals();
+        collateralDecimals = collateral.decimals();
+        oracleDecimals = oracle.decimals();
     }
 
     /// @notice Deposits additional collateral into the vault
@@ -109,8 +132,8 @@ contract CollateralizedVault is Ownable {
 
     /// @notice Returns the required amount of collateral in order to borrow `borrowAmount`
     function getRequiredCollateral(uint256 borrowAmount) public view returns (uint256 requiredCollateral) {
-        requiredCollateral = mulup(borrowAmount, getPrice(), oracle.decimals());
-        requiredCollateral = scaleInteger(requiredCollateral, underlying.decimals(), collateral.decimals());
+        requiredCollateral = mulup(borrowAmount, getPrice(), oracleDecimals);
+        requiredCollateral = scaleInteger(requiredCollateral, underlyingDecimals, collateralDecimals);
     }
 
     /// @dev Scales a fixed point interger from `fromDecimals` to `toDecimals`

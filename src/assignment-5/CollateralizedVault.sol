@@ -5,6 +5,8 @@ import {IERC20} from "yield-utils-v2/token/IERC20.sol";
 import {AggregatorV3Interface} from "chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import {Ownable} from "openzeppelin/contracts/access/Ownable.sol";
 
+import "forge-std/console2.sol";
+
 interface IERC20WithDecimals is IERC20 {
     function decimals() external view returns (uint8);
 }
@@ -60,8 +62,7 @@ contract CollateralizedVault is Ownable {
     ///     Only allowed to borrow up to the value of the collateral
     /// @param amount The amount of `underlying` token to borrow
     function borrow(uint256 amount) public {
-        uint256 maxDebt = getMaxAllowedDebt(deposits[msg.sender]);
-        if (borrows[msg.sender] + amount > maxDebt) {
+        if (getRequiredCollateral(borrows[msg.sender] + amount) > deposits[msg.sender]) {
             revert NotEnoughCollateral();
         }
 
@@ -106,15 +107,9 @@ contract CollateralizedVault is Ownable {
         delete deposits[user];
     }
 
-    /// @notice Returns the maximum allowed debt for the given `collateralAmount`
-    function getMaxAllowedDebt(uint256 collateralAmount) public view returns (uint256 underlyingAmount) {
-        underlyingAmount = (collateralAmount * 10**oracle.decimals()) / getPrice();
-        underlyingAmount = scaleInteger(underlyingAmount, collateral.decimals(), underlying.decimals());
-    }
-
     /// @notice Returns the required amount of collateral in order to borrow `borrowAmount`
     function getRequiredCollateral(uint256 borrowAmount) public view returns (uint256 requiredCollateral) {
-        requiredCollateral = (borrowAmount * getPrice()) / 10**oracle.decimals();
+        requiredCollateral = mulup(borrowAmount, getPrice(), oracle.decimals());
         requiredCollateral = scaleInteger(requiredCollateral, underlying.decimals(), collateral.decimals());
     }
 
@@ -137,6 +132,10 @@ contract CollateralizedVault is Ownable {
             /*uint80 answeredInRound*/
         ) = oracle.latestRoundData();
         return toUint256(price);
+    }
+
+    function mulup(uint256 x, uint256 y, uint8 decimals) internal pure returns (uint256 z) {
+        z = (x * y + 10**decimals - 1) / 10**decimals;
     }
 
     function toUint256(int256 value) internal pure returns (uint256) {

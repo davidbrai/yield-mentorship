@@ -105,7 +105,6 @@ contract UserDepositedStateTest is UserDepositedState {
     }
 
     function testWithdrawExactAmount() public {
-        // 12.345 = 12345 / 1000; => RAY * 12345 / 1000
         yvToken.setPricePerShareMock((RAY * 19) / 18);
 
         assertEq(token.balanceOf(USER), 2000);

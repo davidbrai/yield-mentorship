@@ -26,13 +26,13 @@ contract CollateralizedVault is Ownable {
 
     /// @notice Chainlink priceFeed of underlying / collateral
     ///     e.g. if underlying is DAI and collateral is WETH, priceFeed is for DAI/WETH
-    AggregatorV3Interface public immutable priceFeed;
+    AggregatorV3Interface public immutable oracle;
 
     /// @notice deposited collateral per user in the vault, of `collateral` token
-    mapping(address => uint256) public depositedCollateral;
+    mapping(address => uint256) public deposits;
 
     /// @notice Mapping of current debt per user, of `underlying` token
-    mapping(address => uint256) public debt;
+    mapping(address => uint256) public borrows;
 
     error TooMuchDebt();
     error NotEnoughCollateral();
@@ -41,17 +41,17 @@ contract CollateralizedVault is Ownable {
     /// @notice Initalizes a new CollateralizedVault
     /// @param underlying_ ERC20 token which can be borrowed from the vault
     /// @param collateral_ ERC20 token which can be used as collateral
-    /// @param priceFeed_ Chainlink priceFeed of underlying / collateral
-    constructor(address underlying_, address collateral_, address priceFeed_) {
+    /// @param oracle_ Chainlink price feed of underlying / collateral
+    constructor(address underlying_, address collateral_, address oracle_) {
         underlying = IERC20WithDecimals(underlying_);
         collateral = IERC20WithDecimals(collateral_);
-        priceFeed = AggregatorV3Interface(priceFeed_);
+        oracle = AggregatorV3Interface(oracle_);
     }
 
     /// @notice Deposits additional collateral into the vault
     /// @param collateralAmount amount of `collateral` token to deposit
     function deposit(uint256 collateralAmount) public {
-        depositedCollateral[msg.sender] += collateralAmount;
+        deposits[msg.sender] += collateralAmount;
 
         collateral.transferFrom(msg.sender, address(this), collateralAmount);
     }
@@ -60,20 +60,20 @@ contract CollateralizedVault is Ownable {
     ///     Only allowed to borrow up to the value of the collateral
     /// @param amount The amount of `underlying` token to borrow
     function borrow(uint256 amount) public {
-        uint256 maxDebt = getMaxAllowedDebt(depositedCollateral[msg.sender]);
-        if (debt[msg.sender] + amount > maxDebt) {
+        uint256 maxDebt = getMaxAllowedDebt(deposits[msg.sender]);
+        if (borrows[msg.sender] + amount > maxDebt) {
             revert NotEnoughCollateral();
         }
 
-        debt[msg.sender] += amount;
+        borrows[msg.sender] += amount;
 
         underlying.transfer(msg.sender, amount);
     }
 
     /// @notice Pays back an open debt
     /// @param amount The amount of `underlying` token to pay back
-    function repayDebt(uint256 amount) public {
-        debt[msg.sender] -= amount;
+    function repay(uint256 amount) public {
+        borrows[msg.sender] -= amount;
 
         underlying.transferFrom(msg.sender, address(this), amount);
     }
@@ -82,13 +82,13 @@ contract CollateralizedVault is Ownable {
     ///     Only allowed to withdraw as long as the collateral left is higher in value than the debt
     /// @param collateralAmount The amount of `collateral` token to withdraw
     function withdraw(uint256 collateralAmount) public {
-        uint256 requiredCollateral = getRequiredCollateral(debt[msg.sender]);
+        uint256 requiredCollateral = getRequiredCollateral(borrows[msg.sender]);
 
-        if (depositedCollateral[msg.sender] - collateralAmount < requiredCollateral) {
+        if (deposits[msg.sender] - collateralAmount < requiredCollateral) {
             revert TooMuchDebt();
         }
 
-        depositedCollateral[msg.sender] -= collateralAmount;
+        deposits[msg.sender] -= collateralAmount;
 
         collateral.transfer(msg.sender, collateralAmount);
     }
@@ -96,25 +96,25 @@ contract CollateralizedVault is Ownable {
     /// @notice Admin: liquidate a user debt if the collateral value falls below the debt
     /// @param user The user to liquidate
     /// @dev Only admin is allowed to liquidate
-    function liquidateUser(address user) onlyOwner public {
-        uint256 requiredCollateral = getRequiredCollateral(debt[user]);
-        if (depositedCollateral[user] >= requiredCollateral) {
+    function liquidate(address user) onlyOwner public {
+        uint256 requiredCollateral = getRequiredCollateral(borrows[user]);
+        if (deposits[user] >= requiredCollateral) {
             revert UserDebtIsSufficientlyCollateralized();
         }
 
-        delete debt[user];
-        delete depositedCollateral[user];
+        delete borrows[user];
+        delete deposits[user];
     }
 
     /// @notice Returns the maximum allowed debt for the given `collateralAmount`
     function getMaxAllowedDebt(uint256 collateralAmount) public view returns (uint256 underlyingAmount) {
-        underlyingAmount = (collateralAmount * 10**priceFeed.decimals()) / getPrice();
+        underlyingAmount = (collateralAmount * 10**oracle.decimals()) / getPrice();
         underlyingAmount = scaleInteger(underlyingAmount, collateral.decimals(), underlying.decimals());
     }
 
     /// @notice Returns the required amount of collateral in order to borrow `borrowAmount`
     function getRequiredCollateral(uint256 borrowAmount) public view returns (uint256 requiredCollateral) {
-        requiredCollateral = (borrowAmount * getPrice()) / 10**priceFeed.decimals();
+        requiredCollateral = (borrowAmount * getPrice()) / 10**oracle.decimals();
         requiredCollateral = scaleInteger(requiredCollateral, underlying.decimals(), collateral.decimals());
     }
 
@@ -135,7 +135,7 @@ contract CollateralizedVault is Ownable {
             /*uint startedAt*/,
             /*uint timeStamp*/,
             /*uint80 answeredInRound*/
-        ) = priceFeed.latestRoundData();
+        ) = oracle.latestRoundData();
         return toUint256(price);
     }
 

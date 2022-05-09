@@ -59,17 +59,17 @@ contract ZeroStateTest is ZeroState {
         assertEqDecimal(usdc.balanceOf(USER), 6000 * 1e6, 6);
 
         // Collateral is 3 WETH
-        assertEq(vault.depositedCollateral(USER), 3 ether);
+        assertEq(vault.deposits(USER), 3 ether);
 
         // Debt is 6000 USDC
-        assertEq(vault.debt(USER), 6000 * 1e6);
+        assertEq(vault.borrows(USER), 6000 * 1e6);
     }
 
     function testRevertsIfTryingToWithdrawTooMuch() public {
         vm.startPrank(USER);
         vault.deposit(3 ether);
         vault.borrow(6000 * 1e6);
-        vault.repayDebt(2000 * 1e6);
+        vault.repay(2000 * 1e6);
 
         vm.expectRevert(CollateralizedVault.TooMuchDebt.selector);
         vault.withdraw(2 ether);

@@ -85,14 +85,14 @@ contract FractionalWrapper is ERC20Permit {
     /// @param tokenAmount The amount of underlying token to recover
     /// @return wrapperAmount The amount of wrapper tokens burned
     function withdrawExact(uint256 tokenAmount) public returns (uint256 wrapperAmount) {
-        wrapperAmount = rdiv(tokenAmount, yvToken.pricePerShare());
+        wrapperAmount = rdivup(tokenAmount, yvToken.pricePerShare());
         withdraw(wrapperAmount);
     }
 
-    /// @dev Divides a ray number by a non ray divisor
+    /// @dev Divides a ray number by a non ray divisor, rounds up
     /// @param x A number to be divided. Should be a fixed point integer with 27 decimals (ray)
     /// @param y The divisor, a regular integer
-    function rdiv(uint256 x, uint256 y) internal pure returns (uint256) {
-        return (x * RAY) / y;
+    function rdivup(uint256 x, uint256 y) internal pure returns (uint256) {
+        return (x * RAY + y - 1) / y;
     }
 }

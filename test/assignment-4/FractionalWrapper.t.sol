@@ -120,7 +120,7 @@ contract UserDepositedStateTest is UserDepositedState {
         assertEq(token.balanceOf(USER), 2000);
 
         vm.prank(USER);
-        uint256 wrapperSharesReturned = wrapper.withdrawExact(1000);
+        wrapper.withdrawExact(1000);
         
         assertEq(token.balanceOf(USER), 3000);
     }

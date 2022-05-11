@@ -10,6 +10,12 @@ import {ChainlinkPriceFeedMock} from "src/assignment-5/ChainlinkPriceFeedMock.so
 
 abstract contract ZeroState is Test {
 
+    event Deposit(address indexed user, uint256 amount);
+    event Borrow(address indexed user, uint256 amount);
+    event Repay(address indexed user, uint256 amount);
+    event Withdraw(address indexed user, uint256 amount);
+    event Liquidate(address indexed user, uint256 debtAmount, uint256 collateralAmount);
+
     using stdStorage for StdStorage;
 
     address USER = address(1);
@@ -54,6 +60,8 @@ contract ZeroStateTest is ZeroState {
 
     function testDeposit() public {
         vm.prank(USER);
+        vm.expectEmit(true, true, true, true);
+        emit Deposit(USER, 3 ether);
         vault.deposit(3 ether);
 
         // 3 WETH was transfered to the vault
@@ -101,6 +109,8 @@ abstract contract DepositedCollateralState is ZeroState {
 contract DepositedCollateralStateTest is DepositedCollateralState {
     function testBorrow() public {
         vm.prank(USER);
+        vm.expectEmit(true, true, true, true);
+        emit Borrow(USER, 6000 * 1e18);
         vault.borrow(6000 * 1e18);
 
         // 6000 DAI was transfered to the USER
@@ -141,6 +151,8 @@ contract BorrowedStateTest is BorrowedState {
         assertEq(vault.borrows(USER), 3 * 2000 ether);
 
         vm.prank(USER);
+        vm.expectEmit(true, true, true, true);
+        emit Repay(USER, 2000 ether);
         vault.repay(2000 ether);
 
         assertEq(vault.borrows(USER), 2 * 2000 ether);
@@ -172,6 +184,8 @@ contract BorrowedStateTest is BorrowedState {
         // But also no more DAI
         assertEq(dai.balanceOf(USER), 0);
 
+        vm.expectEmit(true, true, true, true);
+        emit Withdraw(USER, 3 ether);
         vault.withdraw(3 ether);
         // WETH is returned to user
         assertEq(weth.balanceOf(USER), 10 ether);
@@ -198,6 +212,8 @@ contract BorrowedStateTest is BorrowedState {
         assertEq(vault.deposits(USER), 3 ether);
 
         // liquidate user
+        vm.expectEmit(true, true, true, true);
+        emit Liquidate(USER, 6000 ether, 3 ether);
         vault.liquidate(USER);
 
         assertEq(vault.deposits(USER), 0);

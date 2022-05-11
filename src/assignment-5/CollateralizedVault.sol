@@ -53,6 +53,24 @@ contract CollateralizedVault is Ownable {
     /// @notice Mapping of current debt per user, of `underlying` token
     mapping(address => uint256) public borrows;
 
+    /******************
+     * Events
+     ******************/
+
+    /// @notice An event emitted when `user` deposits additional `amount` collateral
+    event Deposit(address indexed user, uint256 amount);
+
+    /// @notice An event emitted when `user` borrows `amount` of underlying
+    event Borrow(address indexed user, uint256 amount);
+
+    /// @notice An event emitted when `user` repays an `amount` of underlying of their debt
+    event Repay(address indexed user, uint256 amount);
+
+    /// @notice An event emitted when `user` withdraws `amount` of their collateral
+    event Withdraw(address indexed user, uint256 amount);
+
+    /// @notice An event emitted when `user` is liquidated
+    event Liquidate(address indexed user, uint256 debtAmount, uint256 collateralAmount);
 
     error TooMuchDebt();
     error NotEnoughCollateral();
@@ -79,6 +97,8 @@ contract CollateralizedVault is Ownable {
         deposits[msg.sender] += collateralAmount;
 
         collateral.transferFrom(msg.sender, address(this), collateralAmount);
+
+        emit Deposit(msg.sender, collateralAmount);
     }
 
     /// @notice Borrows `underlying` token from the Vault
@@ -92,6 +112,8 @@ contract CollateralizedVault is Ownable {
         borrows[msg.sender] += amount;
 
         underlying.transfer(msg.sender, amount);
+
+        emit Borrow(msg.sender, amount);
     }
 
     /// @notice Pays back an open debt
@@ -100,6 +122,8 @@ contract CollateralizedVault is Ownable {
         borrows[msg.sender] -= amount;
 
         underlying.transferFrom(msg.sender, address(this), amount);
+
+        emit Repay(msg.sender, amount);
     }
 
     /// @notice Withdraws part of the collateral
@@ -115,6 +139,8 @@ contract CollateralizedVault is Ownable {
         deposits[msg.sender] -= collateralAmount;
 
         collateral.transfer(msg.sender, collateralAmount);
+
+        emit Withdraw(msg.sender, collateralAmount);
     }
 
     /// @notice Admin: liquidate a user debt if the collateral value falls below the debt
@@ -125,6 +151,8 @@ contract CollateralizedVault is Ownable {
         if (deposits[user] >= requiredCollateral) {
             revert UserDebtIsSufficientlyCollateralized();
         }
+
+        emit Liquidate(user, borrows[user], deposits[user]);
 
         delete borrows[user];
         delete deposits[user];

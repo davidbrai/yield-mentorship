@@ -59,7 +59,7 @@ abstract contract ZeroState is Test {
 
 contract ZeroStateTest is ZeroState {
 
-    event Initalized(uint256 amount0, uint256 amount1);
+    event Initialized(uint256 amount0, uint256 amount1);
 
     function testInit() public {
         token0.mint(alice, 5 ether);
@@ -67,7 +67,7 @@ contract ZeroStateTest is ZeroState {
 
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
-        emit Initalized(5 ether, 10 ether);
+        emit Initialized(5 ether, 10 ether);
         uint z = amm.init(5 ether, 10 ether);
 
         assertEq(z, 50 * 1e36);

@@ -33,14 +33,14 @@ contract AMM is ERC20Permit {
     uint256 public reserve1;
 
     /// @notice Indicates whether the contract has been initalized with initial reserves
-    bool public initalized;
+    bool public initialized;
 
     /******************
      * Events
      ******************/
 
     /// @notice Event emitted when first initalizing the AMM
-    event Initalized(uint256 amount0, uint256 amount1);
+    event Initialized(uint256 amount0, uint256 amount1);
 
     /// @notice Event emitted when a user deposits tokens into the AMM and gets LP tokens in return
     event Mint(address indexed user, uint256 amount0, uint256 amount1, uint256 amountLP);
@@ -85,10 +85,10 @@ contract AMM is ERC20Permit {
     /// @param amount1 Amount of `token1` to deposit
     /// @return lpTokens Amount of `lpTokens` minted to the user
     function init(uint256 amount0, uint256 amount1) public returns (uint256 lpTokens) {
-        if (initalized) {
+        if (initialized) {
             revert AlreadyInitialized();
         }
-        initalized = true;
+        initialized = true;
 
         lpTokens = amount0 * amount1;
 
@@ -100,7 +100,7 @@ contract AMM is ERC20Permit {
         token0.transferFrom(msg.sender, address(this), amount0);
         token1.transferFrom(msg.sender, address(this), amount1);
 
-        emit Initalized(amount0, amount1);
+        emit Initialized(amount0, amount1);
     }
 
     /// @notice Deposits additional tokens into the AMM and mints new LP tokens

@@ -169,6 +169,19 @@ contract InitializedStateTest is InitializedState {
         assertEq(token1.balanceOf(bob), amount1 + amount1_2);
     }
 
+    function testFuzzConstantProductMaintained(uint256 amount) public {
+        uint256 k = amm.reserve0() * amm.reserve1();
+        amount = bound(amount, 0, 1e10 * amm.reserve0());
+        
+        token0.mint(bob, amount);
+        
+        vm.prank(bob);
+        amm.sell0(amount);
+
+        // constant product is maintained
+        assertRelApproxEq(amm.reserve0() * amm.reserve1(), k, 1e10);
+    }
+
     function testSell1() public {
         token1.mint(bob, 10 ether);
         uint256 k = amm.reserve0() * amm.reserve1();

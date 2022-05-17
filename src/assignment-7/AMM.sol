@@ -32,9 +32,6 @@ contract AMM is ERC20Permit {
     /// @notice Amount of `token1` currently held by the contract
     uint256 public reserve1;
 
-    /// @notice Indicates whether the contract has been initalized with initial reserves
-    bool public initialized;
-
     /******************
      * Events
      ******************/
@@ -85,10 +82,9 @@ contract AMM is ERC20Permit {
     /// @param amount1 Amount of `token1` to deposit
     /// @return lpTokens Amount of `lpTokens` minted to the user
     function init(uint256 amount0, uint256 amount1) public returns (uint256 lpTokens) {
-        if (initialized) {
+        if (_totalSupply != 0) {
             revert AlreadyInitialized();
         }
-        initialized = true;
 
         lpTokens = amount0 * amount1;
 

@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import {ERC20Permit} from "yield-utils-v2/token/ERC20Permit.sol";
 import {IERC20} from "yield-utils-v2/token/IERC20.sol";
+import {TransferHelper} from "yield-utils-v2/token/TransferHelper.sol";
 
 /// @title A constant product automated market maker
 /// @author davidbrai
@@ -12,6 +13,8 @@ import {IERC20} from "yield-utils-v2/token/IERC20.sol";
 /// @dev Explain to a developer any extra details
 contract AMM is ERC20Permit {
 
+    using TransferHelper for IERC20;
+
     /******************
      * Immutables
      ******************/
@@ -20,7 +23,7 @@ contract AMM is ERC20Permit {
     IERC20 public immutable token0;
 
     /// @notice Second ERC20 token of this AMM
-    IERC20 public immutable token1; 
+    IERC20 public immutable token1;
 
     /******************
      * Storage
@@ -93,8 +96,8 @@ contract AMM is ERC20Permit {
 
         _mint(msg.sender, lpTokens);
 
-        token0.transferFrom(msg.sender, address(this), amount0);
-        token1.transferFrom(msg.sender, address(this), amount1);
+        token0.safeTransferFrom(msg.sender, address(this), amount0);
+        token1.safeTransferFrom(msg.sender, address(this), amount1);
 
         emit Initialized(amount0, amount1);
     }
@@ -126,8 +129,8 @@ contract AMM is ERC20Permit {
         _mint(msg.sender, lpTokens);
 
         // transfers tokens into AMM
-        token0.transferFrom(msg.sender, address(this), amount0);
-        token1.transferFrom(msg.sender, address(this), amount1);
+        token0.safeTransferFrom(msg.sender, address(this), amount0);
+        token1.safeTransferFrom(msg.sender, address(this), amount1);
 
         emit Mint(msg.sender, amount0, amount1, lpTokens);
     }
@@ -153,8 +156,8 @@ contract AMM is ERC20Permit {
         _burn(msg.sender, lpTokens);
 
         // send underlying to user
-        token0.transfer(msg.sender, amount0);
-        token1.transfer(msg.sender, amount1);
+        token0.safeTransfer(msg.sender, amount0);
+        token1.safeTransfer(msg.sender, amount1);
 
         emit Burn(msg.sender, amount0, amount1, lpTokens);
     }
@@ -188,10 +191,10 @@ contract AMM is ERC20Permit {
         reserve1 = reserve1_ - amount1;
 
         // send amount0 to amm
-        token0.transferFrom(msg.sender, address(this), amount0);
+        token0.safeTransferFrom(msg.sender, address(this), amount0);
 
         // send amount1 to user
-        token1.transfer(msg.sender, amount1);
+        token1.safeTransfer(msg.sender, amount1);
 
         emit Sell0(msg.sender, amount0, amount1);
     }
@@ -212,10 +215,10 @@ contract AMM is ERC20Permit {
         reserve1 = reserve1_ + amount1;
 
         // send amount1 to amm
-        token1.transferFrom(msg.sender, address(this), amount1);
+        token1.safeTransferFrom(msg.sender, address(this), amount1);
 
         // send amount0 to user
-        token0.transfer(msg.sender, amount0);
+        token0.safeTransfer(msg.sender, amount0);
 
         emit Sell1(msg.sender, amount0, amount1);
     }

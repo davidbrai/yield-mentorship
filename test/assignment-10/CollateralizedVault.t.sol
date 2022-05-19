@@ -57,7 +57,6 @@ abstract contract ZeroState is Test {
 }
 
 contract ZeroStateTest is ZeroState {
-
     function testDeposit() public {
         vm.prank(USER);
         vm.expectEmit(true, true, true, true);
@@ -108,16 +107,18 @@ abstract contract DepositedCollateralState is ZeroState {
 
 contract DepositedCollateralStateTest is DepositedCollateralState {
     function testBorrow() public {
+        // should be able to borrow 3 * 66% = 1.98 ETH worth of DAI = 3960
+
         vm.prank(USER);
         vm.expectEmit(true, true, true, true);
-        emit Borrow(USER, 6000 * 1e18);
-        vault.borrow(6000 * 1e18);
+        emit Borrow(USER, 3960 * 1e18);
+        vault.borrow(3960 * 1e18);
 
         // 6000 DAI was transfered to the USER
-        assertEqDecimal(dai.balanceOf(USER), 6000 * 1e18, 18);
+        assertEqDecimal(dai.balanceOf(USER), 3960 * 1e18, 18);
 
         // User debt is recorded
-        assertEq(vault.borrows(USER), 6000 * 1e18);
+        assertEq(vault.borrows(USER), 3960 * 1e18);
     }
 
     function testBorrowMultipleTimesAccumulatesDebt() public {
@@ -133,7 +134,7 @@ contract DepositedCollateralStateTest is DepositedCollateralState {
     function testRevertsWhenTryingToBorrowTooMuch() public {
         vm.prank(USER);
         vm.expectRevert(CollateralizedVault.NotEnoughCollateral.selector);
-        vault.borrow(6000 * 1e18 + 1);
+        vault.borrow(3960 * 1e18 + 1);
     }
 }
 
@@ -142,27 +143,27 @@ abstract contract BorrowedState is DepositedCollateralState {
         super.setUp();
 
         vm.prank(USER);
-        vault.borrow(6000 * 1e18);
+        vault.borrow(3960 * 1e18);
     }
 }
 
 contract BorrowedStateTest is BorrowedState {
     function testRepayDebt() public {
-        assertEq(vault.borrows(USER), 3 * 2000 ether);
+        assertEq(vault.borrows(USER), 3960 ether);
 
         vm.prank(USER);
         vm.expectEmit(true, true, true, true);
-        emit Repay(USER, 2000 ether);
-        vault.repay(2000 ether);
+        emit Repay(USER, 1000 ether);
+        vault.repay(1000 ether);
 
-        assertEq(vault.borrows(USER), 2 * 2000 ether);
-        assertEq(dai.balanceOf(USER), 2 * 2000 ether);
+        assertEq(vault.borrows(USER), 2960 ether);
+        assertEq(dai.balanceOf(USER), 2960 ether);
     }
 
     function testRepayTooMuchDebtReverts() public {
         vm.prank(USER);
         vm.expectRevert(stdError.arithmeticError);
-        vault.repay(6001 ether);
+        vault.repay(3960 ether + 1);
     }
 
     function testCantWithdrawCollateral() public {
@@ -173,12 +174,12 @@ contract BorrowedStateTest is BorrowedState {
 
     function testCanWithdrawEntireCollateralIfPaidAllDebt() public {
         assertEq(weth.balanceOf(USER), 7 ether);
-        assertEq(vault.borrows(USER), 6000 * 1e18);
+        assertEq(vault.borrows(USER), 3960 * 1e18);
         assertEq(vault.deposits(USER), 3 ether);
 
         // Repay entire debt
         vm.startPrank(USER);
-        vault.repay(3 * 2000 ether);
+        vault.repay(3960 ether);
         // No more debt
         assertEq(vault.borrows(USER), 0);
         // But also no more DAI
@@ -213,7 +214,7 @@ contract BorrowedStateTest is BorrowedState {
 
         // liquidate user
         vm.expectEmit(true, true, true, true);
-        emit Liquidate(USER, 6000 ether, 3 ether);
+        emit Liquidate(USER, 3960 ether, 3 ether);
         vault.liquidate(USER);
 
         assertEq(vault.deposits(USER), 0);
@@ -221,13 +222,14 @@ contract BorrowedStateTest is BorrowedState {
     }
 }
 
+
 abstract contract PartiallyRepaidDebtState is BorrowedState {
     function setUp() virtual override public {
         super.setUp();
 
         // Repay 2 thirds of debt
         vm.prank(USER);
-        vault.repay(2 * 2000 ether);
+        vault.repay(2640 ether);
     }
 }
 
@@ -235,7 +237,7 @@ contract PartiallyRepaidDebtStateTest is PartiallyRepaidDebtState {
 
     function testWithdrawPartialCollateral() public {
         // 1 third debt left
-        assertEq(vault.borrows(USER), 2000 ether);
+        assertEq(vault.borrows(USER), 1320 ether);
 
         vm.prank(USER);
         vault.withdraw(2 ether);
@@ -267,8 +269,8 @@ contract PartiallyRepaidDebtStateTest is PartiallyRepaidDebtState {
         // WETH went up 25%, now at $2500, price = 1/2500
         priceFeedMock.setPrice(1e18 / 2500);
 
-        // User has debt of 2000 DAI, that's 0.8 WETH
-        assertEq(vault.borrows(USER), 2000 ether);
+        // User has debt of 1320 DAI, that's 0.528 WETH
+        assertEq(vault.borrows(USER), 1320 ether);
 
         // User currently has 3 WETH as collateral
         assertEq(vault.deposits(USER), 3 ether);

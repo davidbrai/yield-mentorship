@@ -4,8 +4,7 @@ pragma solidity ^0.8.13;
 import {IERC20} from "yield-utils-v2/token/IERC20.sol";
 import {AggregatorV3Interface} from "chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import {Ownable} from "openzeppelin/contracts/access/Ownable.sol";
-
-import "forge-std/console2.sol";
+import {WDivUp} from "yield-utils-v2/math/WDivUp.sol";
 
 interface IERC20WithDecimals is IERC20 {
     function decimals() external view returns (uint8);
@@ -19,6 +18,14 @@ interface IERC20WithDecimals is IERC20 {
 ///     In case of a liquidation, both the user's debt and collateral are erased.
 /// @dev The Vault uses Chainlink price feeds to determine the value of the collateral compared to the debt
 contract CollateralizedVault is Ownable {
+
+    using WDivUp for uint256;
+
+    /******************
+     * Constants
+     ******************/
+
+     uint256 constant LTV = uint256(66 * 1e18) / 100; // loan-to-value ratio of 66%
 
     /******************
      * Immutables
@@ -162,6 +169,7 @@ contract CollateralizedVault is Ownable {
     function getRequiredCollateral(uint256 borrowAmount) public view returns (uint256 requiredCollateral) {
         requiredCollateral = mulup(borrowAmount, getPrice(), oracleDecimals);
         requiredCollateral = scaleInteger(requiredCollateral, underlyingDecimals, collateralDecimals);
+        requiredCollateral = requiredCollateral.wdivup(LTV);
     }
 
     /// @dev Scales a fixed point interger from `fromDecimals` to `toDecimals`

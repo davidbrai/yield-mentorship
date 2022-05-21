@@ -77,7 +77,7 @@ contract CollateralizedVault is Ownable {
     event Withdraw(address indexed user, uint256 amount);
 
     /// @notice An event emitted when `user` is liquidated
-    event Liquidate(address indexed user, uint256 debtAmount, uint256 collateralAmount);
+    event Liquidate(address indexed liquidator, address indexed user, uint256 debtAmount, uint256 collateralAmount);
 
     error TooMuchDebt();
     error NotEnoughCollateral();
@@ -150,19 +150,29 @@ contract CollateralizedVault is Ownable {
         emit Withdraw(msg.sender, collateralAmount);
     }
 
-    /// @notice Admin: liquidate a user debt if the collateral value falls below the debt
+    /// @notice Liquidate an undercollateralized user debt position by paying its' debt
+    ///     Liquidator will send `underlying` token to the contract to cover the `user`'s debt
+    ///     The contract will send to the liquidator the collateral
     /// @param user The user to liquidate
-    /// @dev Only admin is allowed to liquidate
-    function liquidate(address user) onlyOwner public {
+    function liquidate(address user) public {
         uint256 requiredCollateral = getRequiredCollateral(borrows[user]);
         if (deposits[user] >= requiredCollateral) {
             revert UserDebtIsSufficientlyCollateralized();
         }
 
-        emit Liquidate(user, borrows[user], deposits[user]);
+        uint256 userLoan = borrows[user];
+        uint256 userDeposit = deposits[user];
 
         delete borrows[user];
         delete deposits[user];
+
+        // Cover user debt position
+        underlying.transferFrom(msg.sender, address(this), userLoan);
+
+        // Send collateral to liquidator
+        collateral.transfer(msg.sender, userDeposit);
+
+        emit Liquidate(msg.sender, user, userLoan, userDeposit);
     }
 
     /// @notice Returns the required amount of collateral in order to borrow `borrowAmount`

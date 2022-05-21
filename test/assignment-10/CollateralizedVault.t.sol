@@ -14,11 +14,12 @@ abstract contract ZeroState is Test {
     event Borrow(address indexed user, uint256 amount);
     event Repay(address indexed user, uint256 amount);
     event Withdraw(address indexed user, uint256 amount);
-    event Liquidate(address indexed user, uint256 debtAmount, uint256 collateralAmount);
+    event Liquidate(address indexed liquidator, address indexed user, uint256 debtAmount, uint256 collateralAmount);
 
     using stdStorage for StdStorage;
 
     address USER = address(1);
+    address bob = address(2);
     CollateralizedVault vault;
     Dai dai;
     WETH9 weth;
@@ -192,18 +193,16 @@ contract BorrowedStateTest is BorrowedState {
         assertEq(weth.balanceOf(USER), 10 ether);
     }
 
-    function testOnlyOwnerCanLiquidate() public {
-        vm.prank(address(0x1234));
-        vm.expectRevert("Ownable: caller is not the owner");
-        vault.liquidate(USER);
-    }
-
-    function testOwnerCantLiquidateIfDebtIsCollateralized() public {
+    function testCantLiquidateIfDebtIsCollateralized() public {
         vm.expectRevert(CollateralizedVault.UserDebtIsSufficientlyCollateralized.selector);
         vault.liquidate(USER);
     }
+}
 
-    function testOwnerCanLiquidateIfDebtIsUnderCollateralized() public {
+abstract contract UndercollateralizedDebtState is BorrowedState {
+    function setUp() public virtual override {
+        super.setUp();
+
         // WETH went down, now only $1000, DAI/ETH = 1/1000
         priceFeedMock.setPrice(1e18 / 1000);
 
@@ -212,13 +211,34 @@ contract BorrowedStateTest is BorrowedState {
         // But only 3 is deposited
         assertEq(vault.deposits(USER), 3 ether);
 
-        // liquidate user
+        vm.prank(bob);
+        dai.approve(address(vault), 3960 ether);
+    }
+}
+
+contract UndercollateralizedDebtStateTest is UndercollateralizedDebtState {
+    function testCanLiquidateIfDebtIsUnderCollateralized() public {
+        // give bob enough DAI to liquidate
+        dai.mint(bob, 3960 ether);
+
+        // liquidate
         vm.expectEmit(true, true, true, true);
-        emit Liquidate(USER, 3960 ether, 3 ether);
+        emit Liquidate(bob, USER, 3960 ether, 3 ether);
+        vm.prank(bob);
         vault.liquidate(USER);
 
         assertEq(vault.deposits(USER), 0);
         assertEq(vault.borrows(USER), 0);
+        assertEq(dai.balanceOf(bob), 0);
+        assertEq(weth.balanceOf(bob), 3 ether);
+    }
+
+    function testCantLiquidateIfDontHaveEnoughToCoverDebt() public {
+        dai.mint(bob, 3960 ether - 1);
+
+        vm.expectRevert("Dai/insufficient-balance");
+        vm.prank(bob);
+        vault.liquidate(USER);
     }
 }
 

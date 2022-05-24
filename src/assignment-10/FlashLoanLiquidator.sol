@@ -45,6 +45,7 @@ contract FlashLoanLiquidator {
 
     error UnauthorizedInitiator();
     error UnauthorizedMsgSender();
+    error NotUndercollateralized();
 
     struct SwapParams {
         address vaultUser;
@@ -72,6 +73,9 @@ contract FlashLoanLiquidator {
     /// @param user The debt position to liquidate in `vault`
     function liquidate(address user) public {
         uint256 debt = vault.borrows(user);
+        if (vault.getRequiredCollateral(debt) <= vault.deposits(user)) {
+            revert NotUndercollateralized();
+        }
 
         // params we want to be available in the flash loan callback (`uniswapV2Call`)
         bytes memory data = abi.encode(SwapParams({vaultUser: user, liquidator: msg.sender}));

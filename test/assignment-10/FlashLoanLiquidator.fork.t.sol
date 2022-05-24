@@ -83,6 +83,19 @@ contract ZeroStateTest is ZeroState {
         vm.expectRevert(FlashLoanLiquidator.UnauthorizedInitiator.selector);
         liquidator.uniswapV2Call(address(0x0), 123, 123, "");
     }
+
+    function testRevertsIfDebtPositionIsNotUndercollateralized() public {
+        // Alice deposits 1 WETH, and borrows 66% * 2000 DAI = 1320 DAI against it
+        vm.startPrank(alice);
+        weth.approve(address(vault), 1 ether);
+        vault.deposit(1 ether);
+        vault.borrow(1320 * 1e18);
+        vm.stopPrank();
+
+        vm.prank(bob);
+        vm.expectRevert(FlashLoanLiquidator.NotUndercollateralized.selector);
+        liquidator.liquidate(alice);
+    }
 }
 
 abstract contract UndercollateralizedDebtState is ZeroState {

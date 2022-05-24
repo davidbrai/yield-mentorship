@@ -154,14 +154,15 @@ contract CollateralizedVault is Ownable {
     ///     Liquidator will send `underlying` token to the contract to cover the `user`'s debt
     ///     The contract will send to the liquidator the collateral
     /// @param user The user to liquidate
-    function liquidate(address user) public {
+    /// @return userDeposit The amount of user collateral sent to the liquidator
+    function liquidate(address user) public returns (uint256 userDeposit) {
         uint256 requiredCollateral = getRequiredCollateral(borrows[user]);
         if (deposits[user] >= requiredCollateral) {
             revert UserDebtIsSufficientlyCollateralized();
         }
 
         uint256 userLoan = borrows[user];
-        uint256 userDeposit = deposits[user];
+        userDeposit = deposits[user];
 
         delete borrows[user];
         delete deposits[user];

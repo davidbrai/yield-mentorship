@@ -225,12 +225,13 @@ contract UndercollateralizedDebtStateTest is UndercollateralizedDebtState {
         vm.expectEmit(true, true, true, true);
         emit Liquidate(bob, USER, 3960 ether, 3 ether);
         vm.prank(bob);
-        vault.liquidate(USER);
+        uint256 collateral = vault.liquidate(USER);
 
         assertEq(vault.deposits(USER), 0);
         assertEq(vault.borrows(USER), 0);
         assertEq(dai.balanceOf(bob), 0);
         assertEq(weth.balanceOf(bob), 3 ether);
+        assertEq(collateral, 3 ether);
     }
 
     function testCantLiquidateIfDontHaveEnoughToCoverDebt() public {

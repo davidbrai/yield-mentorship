@@ -97,17 +97,17 @@ contract FlashLoanLiquidator {
 
         SwapParams memory params = abi.decode(data, (SwapParams));
         
-        // Liquidate user: send DAI, recv WETH
+        // Liquidate user: send underlying, recv collateral
         underlying.approve(address(vault), amount0);
-        uint256 receivedWeth = vault.liquidate(params.vaultUser);
+        uint256 receivedCollateral = vault.liquidate(params.vaultUser);
 
         // Swap WETH for DAI
-        collateral.approve(address(amm), receivedWeth);
-        uint256 receivedDai = amm.sell1(receivedWeth);
+        collateral.approve(address(amm), receivedCollateral);
+        uint256 receivedUnderlying = amm.sell1(receivedCollateral);
 
         // Repay flash loan
         uint256 amountWithFee = amount0 + flashFee(amount0);
-        uint256 profit = receivedDai - amountWithFee;
+        uint256 profit = receivedUnderlying - amountWithFee;
         underlying.safeTransfer(msg.sender, amountWithFee);
 
         // Send liquidation initiator the remaining DAI

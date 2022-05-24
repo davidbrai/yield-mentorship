@@ -90,4 +90,15 @@ contract ZeroStateTest is ZeroState {
 
         emit log_named_decimal_uint("bob balance", dai.balanceOf(bob), 18);
     }
+
+    function testUnauthorizedCallbackSenderIsReverted() public {
+        vm.expectRevert(FlashLoanLiquidator.UnauthorizedMsgSender.selector);
+        liquidator.uniswapV2Call(address(0x0), 123, 123, "");
+    }
+
+    function testUnauthorizedCallbackInitiatorIsReverted() public {
+        vm.prank(liquidator.permissionedPair());
+        vm.expectRevert(FlashLoanLiquidator.UnauthorizedInitiator.selector);
+        liquidator.uniswapV2Call(address(0x0), 123, 123, "");
+    }
 }

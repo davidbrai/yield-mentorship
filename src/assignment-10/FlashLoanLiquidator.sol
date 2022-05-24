@@ -6,16 +6,22 @@ import { IUniswapV2Pair } from "src/assignment-10/interfaces/IUniswapV2Pair.sol"
 import { IUniswapV2Factory } from "src/assignment-10/interfaces/IUniswapV2Factory.sol";
 import { CollateralizedVault } from "src/assignment-10/CollateralizedVault.sol";
 import { AMM } from "src/assignment-7/AMM.sol";
-
-import "forge-std/console2.sol";
+import { TransferHelper } from "yield-utils-v2/token/TransferHelper.sol";
 
 contract FlashLoanLiquidator {
+
+    using TransferHelper for IERC20;
 
     IERC20 immutable public dai;
     IERC20 immutable public weth;
     IUniswapV2Factory immutable public uniswapFactory;
     CollateralizedVault immutable public vault;
     AMM immutable public amm;
+
+    address public permissionedPair;
+
+    error UnauthorizedInitiator();
+    error UnauthorizedMsgSender();
 
     struct SwapParams {
         address vaultUser;
@@ -33,37 +39,38 @@ contract FlashLoanLiquidator {
     function liquidate(address user) public {
         uint256 debt = vault.borrows(user);
 
-        // initiate flash loan
         bytes memory data = abi.encode(SwapParams({vaultUser: user, liquidator: msg.sender}));
 
         IUniswapV2Pair pair = IUniswapV2Pair(uniswapFactory.getPair(address(dai), address(weth)));
+        permissionedPair = address(pair);
+        
         pair.swap(debt, 0, address(this), data);
     }
 
-    function uniswapV2Call(address /*_sender*/, uint _amount0, uint /*_amount1*/, bytes calldata _data) external {
-        // TODO perform checks
+    function uniswapV2Call(address sender, uint amount0, uint /*_amount1*/, bytes calldata data) external {
+        if (msg.sender != permissionedPair) {
+            revert UnauthorizedMsgSender();
+        }
+        if (sender != address(this)) {
+            revert UnauthorizedInitiator();
+        }
 
-        SwapParams memory params = abi.decode(_data, (SwapParams));
-
-        // perform logic
+        SwapParams memory params = abi.decode(data, (SwapParams));
         
-        // liquidate user, send DAI, recv WETH
-        dai.approve(address(vault), _amount0);
+        // Liquidate user: send DAI, recv WETH
+        dai.approve(address(vault), amount0);
         uint256 receivedWeth = vault.liquidate(params.vaultUser);
 
-        // swap WETH for DAI
+        // Swap WETH for DAI
         weth.approve(address(amm), receivedWeth);
         uint256 receivedDai = amm.sell1(receivedWeth);
-        console2.log("receivedDai:", receivedDai);
 
-        uint256 amountWithFee = _amount0 + flashFee(_amount0);
+        // Repay flash loan
+        uint256 amountWithFee = amount0 + flashFee(amount0);
+        dai.safeTransfer(msg.sender, amountWithFee);
 
-        // pay back uniswap
-        // TODO send exactly the required 0.3%
-        dai.transfer(msg.sender, amountWithFee);
-
-        // send liquidation initiator the remaining dai
-        dai.transfer(params.liquidator, receivedDai - amountWithFee);
+        // Send liquidation initiator the remaining DAI
+        dai.safeTransfer(params.liquidator, receivedDai - amountWithFee);
     }
 
     function flashFee(uint256 amount) public pure returns (uint256 fee) {

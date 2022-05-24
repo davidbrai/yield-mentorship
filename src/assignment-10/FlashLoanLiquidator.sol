@@ -107,10 +107,10 @@ contract FlashLoanLiquidator {
 
         // Repay flash loan
         uint256 amountWithFee = amount0 + flashFee(amount0);
+        uint256 profit = receivedDai - amountWithFee;
         underlying.safeTransfer(msg.sender, amountWithFee);
 
         // Send liquidation initiator the remaining DAI
-        uint256 profit = receivedDai - amountWithFee;
         underlying.safeTransfer(params.liquidator, profit);
 
         emit Liquidate(params.liquidator, params.vaultUser, profit);

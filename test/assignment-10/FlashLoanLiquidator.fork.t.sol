@@ -26,7 +26,7 @@ abstract contract ZeroState is Test {
     address alice = address(1);
     address bob = address(2);
 
-    function setUp() public {
+    function setUp() virtual public {
         vm.label(alice, "alice");
         vm.label(bob, "bob");
 
@@ -73,28 +73,6 @@ abstract contract ZeroState is Test {
 }
 
 contract ZeroStateTest is ZeroState {
-    event Liquidate(address indexed liquidator, address indexed liquidatee, uint256 profit);
-
-    function testLiquidate() public {
-        // Alice deposits 1 WETH, and borrows 66% * 2000 DAI = 1320 DAI against it
-        vm.startPrank(alice);
-        weth.approve(address(vault), 1 ether);
-        vault.deposit(1 ether);
-        vault.borrow(1320 * 1e18);
-        vm.stopPrank();
-
-        // Then price of WETH falls so vault becomes undercollateralized
-        oracle.setPrice(1e18 / 1600);
-        initAMM(1600);
-
-        vm.prank(bob);
-        vm.expectEmit(true, true, true, true);
-        emit Liquidate(bob, alice, 260186500094342433239);
-        liquidator.liquidate(alice);
-
-        emit log_named_decimal_uint("bob balance", dai.balanceOf(bob), 18);
-    }
-
     function testUnauthorizedCallbackSenderIsReverted() public {
         vm.expectRevert(FlashLoanLiquidator.UnauthorizedMsgSender.selector);
         liquidator.uniswapV2Call(address(0x0), 123, 123, "");
@@ -104,5 +82,47 @@ contract ZeroStateTest is ZeroState {
         vm.prank(liquidator.permissionedPair());
         vm.expectRevert(FlashLoanLiquidator.UnauthorizedInitiator.selector);
         liquidator.uniswapV2Call(address(0x0), 123, 123, "");
+    }
+}
+
+abstract contract UndercollateralizedDebtState is ZeroState {
+    function setUp() public virtual override {
+        super.setUp();
+
+        // Alice deposits 1 WETH, and borrows 66% * 2000 DAI = 1320 DAI against it
+        vm.startPrank(alice);
+        weth.approve(address(vault), 1 ether);
+        vault.deposit(1 ether);
+        vault.borrow(1320 * 1e18);
+        vm.stopPrank();
+    }
+}
+
+contract UndercollateralizedDebtStateTest is UndercollateralizedDebtState {
+    event Liquidate(address indexed liquidator, address indexed liquidatee, uint256 profit);
+
+    function testLiquidate() public {
+        // Then price of WETH falls so vault becomes undercollateralized
+        oracle.setPrice(1e18 / 1600);
+        initAMM(1600);
+
+        vm.prank(bob);
+        vm.expectEmit(true, true, true, true);
+        emit Liquidate(bob, alice, 260186500094342433239);
+        liquidator.liquidate(alice);
+
+        assertEq(dai.balanceOf(bob), 260186500094342433239);
+    }
+
+    function testRevertsIfNoProfit() public {
+        // oracle WETH price is at $1600
+        oracle.setPrice(1e18 / 1600);
+
+        // but AMM is at $1000
+        initAMM(1000);
+
+        vm.prank(bob);
+        vm.expectRevert(stdError.arithmeticError);
+        liquidator.liquidate(alice);
     }
 }

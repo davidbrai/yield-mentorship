@@ -73,6 +73,8 @@ abstract contract ZeroState is Test {
 }
 
 contract ZeroStateTest is ZeroState {
+    event Liquidate(address indexed liquidator, address indexed liquidatee, uint256 profit);
+
     function testLiquidate() public {
         // Alice deposits 1 WETH, and borrows 66% * 2000 DAI = 1320 DAI against it
         vm.startPrank(alice);
@@ -86,6 +88,8 @@ contract ZeroStateTest is ZeroState {
         initAMM(1600);
 
         vm.prank(bob);
+        vm.expectEmit(true, true, true, true);
+        emit Liquidate(bob, alice, 260186500094342433239);
         liquidator.liquidate(alice);
 
         emit log_named_decimal_uint("bob balance", dai.balanceOf(bob), 18);

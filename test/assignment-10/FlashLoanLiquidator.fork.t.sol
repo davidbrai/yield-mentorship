@@ -108,6 +108,9 @@ abstract contract UndercollateralizedDebtState is ZeroState {
         vault.deposit(1 ether);
         vault.borrow(1320 * 1e18);
         vm.stopPrank();
+
+        // Then price of WETH falls so vault becomes undercollateralized
+        oracle.setPrice(1e18 / 1600);
     }
 }
 
@@ -115,8 +118,7 @@ contract UndercollateralizedDebtStateTest is UndercollateralizedDebtState {
     event Liquidate(address indexed liquidator, address indexed liquidatee, uint256 profit);
 
     function testLiquidate() public {
-        // Then price of WETH falls so vault becomes undercollateralized
-        oracle.setPrice(1e18 / 1600);
+        // Update AMM price to 1600
         initAMM(1600);
 
         vm.prank(bob);
@@ -128,9 +130,6 @@ contract UndercollateralizedDebtStateTest is UndercollateralizedDebtState {
     }
 
     function testRevertsIfNoProfit() public {
-        // oracle WETH price is at $1600
-        oracle.setPrice(1e18 / 1600);
-
         // but AMM is at $1000
         initAMM(1000);
 
